@@ -2,7 +2,7 @@
     "accept": "*/*",
     "accept-encoding": "gzip, deflate",
     "accept-language": "ru,en;q=0.9,en-GB;q=0.8,en-US;q=0.7",
-    "authorization": "SAPISIDHASH 1685090971_d7ed9338ea9c22d39baad85ef0ecfba0494a4c0f",
+    "authorization": "your",
     "content-encoding": "gzip",
     "content-type": "application/json",
     "cookie": "your cookie",
