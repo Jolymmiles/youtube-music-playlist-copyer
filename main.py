@@ -1,7 +1,8 @@
+import asyncio
 import time
 
+from yandex_music import ClientAsync
 from ytmusicapi import YTMusic
-from yandex_music import Client
 
 
 def get_playlist(ytmusic, name):
@@ -51,33 +52,46 @@ def copy_youtube_music_track_from_to_youtube_music_playlist():
     print("\nDone!")
 
 
+async def add_track(client, playlist_kind, track_name, progress):
+    search_results = await client.search(track_name)
+    if search_results.tracks is not None:
+        playlist = await client.users_playlists(kind=playlist_kind)
+        best_track = search_results.tracks.results[0]
+        await client.users_playlists_insert_track(playlist.kind, best_track.id, best_track.albums[0]['id'],
+                                                  revision=playlist.revision)
+        progress['count'] += 1
+        print(f"\rProgress: {progress['count'] / progress['total'] * 100:.2f}%", end="")
 
 
-def yandex_music():
-    client = Client('token').init()
-    #test = client.users_playlists(3)
-    playlist_link_from = input("Link to playlist from which should be copied tracks:").split("=")[1]
-    ytmusic = YTMusic("browser.json")
-    tracks = ytmusic.get_playlist(playlist_link_from, 1000)['tracks']
-    titles = [t['title'] for t in tracks]
+async def yandex_music(titles: []):
+    client = await ClientAsync('').init()
+    print("Connected to Yandex")
 
-    created_playlist = client.users_playlists_create(title="Copied from YTM")
+    created_playlist = await client.users_playlists_create(title="Copied from YTM2")
+    print("Created new playlist")
+    progress = {'count': 0, 'total': len(titles)}
 
     for track_name in titles:
-        # Поиск трека
-        search_result = client.search(track_name, type_='track')
-        # Получение информации о плейлисте
-        if search_result.tracks is not None:
-            playlist = client.users_playlists(kind=created_playlist.kind)
-            # Берем лучший результат
-            best_track = search_result.tracks.results[0]
-            # Добавляем трек в плейлист
-            client.users_playlists_insert_track(playlist.kind, best_track.id, best_track.albums[0]['id'], revision=playlist.revision)
+        await add_track(client, created_playlist.kind, track_name, progress)
+
+def get_track_names_from_youtube_music_playlist():
+    ytmusic = YTMusic("browser.json")
+    print("Connected to YouTube Music")
+    playlists = ytmusic.get_library_playlists()
+    for i, playlist in enumerate(playlists):
+        print(f"{i + 1}: {playlist['title']}")
+    playlist_index = int(input("Enter the index of the playlist you want to select:")) - 1
+    selected_playlist = playlists[playlist_index]
+    tracks = ytmusic.get_playlist(selected_playlist['playlistId'], 1000)['tracks']
+    titles = [t['title'] for t in tracks]
+    print(f"Got all track names from playlist {selected_playlist['playlistId']}")
+    return titles
 
 
 what_to_do = input("You chose:")
 if (what_to_do == '1'):
     copy_youtube_music_track_from_to_youtube_music_playlist()
 elif (what_to_do == '2'):
-    yandex_music()
-
+    loop = asyncio.get_event_loop()
+    temp = get_track_names_from_youtube_music_playlist()
+    loop.run_until_complete(yandex_music(temp))
