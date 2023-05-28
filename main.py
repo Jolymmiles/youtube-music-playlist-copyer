@@ -1,8 +1,56 @@
 import asyncio
+import json
 import time
+from time import sleep
 
+from selenium import webdriver
+from selenium.webdriver import DesiredCapabilities
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.remote.command import Command
+from selenium.webdriver.support.wait import WebDriverWait
+from webdriver_manager.chrome import ChromeDriverManager
 from yandex_music import ClientAsync
 from ytmusicapi import YTMusic
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+
+
+
+def is_active(driver):
+    try:
+        driver.execute(Command.GET_ALL_COOKIES)
+        return True
+    except Exception:
+        return False
+
+
+def get_token():
+    # make chrome log requests
+    capabilities = DesiredCapabilities.CHROME
+    capabilities["loggingPrefs"] = {"performance": "ALL"}
+    capabilities['goog:loggingPrefs'] = {'performance': 'ALL'}
+    # Create a Service object using ChromeDriverManager
+    service = Service(ChromeDriverManager().install())
+
+    with webdriver.Chrome(service=service, desired_capabilities=capabilities) as driver:
+        driver.get("https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabbbdc6cd418abb4b39c32c41195d")
+
+        token = None
+        while token is None and is_active(driver):
+            try:
+                logs_raw = driver.get_log("performance")
+            except Exception:
+                continue
+
+            for lr in logs_raw:
+                log = json.loads(lr["message"])["message"]
+                url_fragment = log.get('params', {}).get('frame', {}).get('urlFragment')
+
+                if url_fragment:
+                    token = url_fragment.split('&')[0].split('=')[1]
+                    break
+
+    return token
 
 
 def get_playlist(ytmusic, name):
@@ -53,26 +101,29 @@ def copy_youtube_music_track_from_to_youtube_music_playlist():
 
 
 async def add_track(client, playlist_kind, track_name, progress):
-    search_results = await client.search(track_name)
+    search_results = await client.search(track_name, type_='track')
     if search_results.tracks is not None:
         playlist = await client.users_playlists(kind=playlist_kind)
         best_track = search_results.tracks.results[0]
-        await client.users_playlists_insert_track(playlist.kind, best_track.id, best_track.albums[0]['id'],
-                                                  revision=playlist.revision)
+        if best_track.available & best_track.albums[0]['id'] is not None:
+            await client.users_playlists_insert_track(playlist.kind, best_track.id, best_track.albums[0]['id'],
+                                                      revision=playlist.revision)
         progress['count'] += 1
         print(f"\rProgress: {progress['count'] / progress['total'] * 100:.2f}%", end="")
 
 
 async def yandex_music(titles: []):
-    client = await ClientAsync('').init()
+    token = get_token()
+    print(f"Got Yandex token {token}")
+    client = await ClientAsync(token).init()
     print("Connected to Yandex")
-
     created_playlist = await client.users_playlists_create(title="Copied from YTM2")
     print("Created new playlist")
     progress = {'count': 0, 'total': len(titles)}
-
+    print(f"Quantity of tracks from youtube {len(titles)}")
     for track_name in titles:
         await add_track(client, created_playlist.kind, track_name, progress)
+
 
 def get_track_names_from_youtube_music_playlist():
     ytmusic = YTMusic("browser.json")
@@ -83,15 +134,16 @@ def get_track_names_from_youtube_music_playlist():
     playlist_index = int(input("Enter the index of the playlist you want to select:")) - 1
     selected_playlist = playlists[playlist_index]
     tracks = ytmusic.get_playlist(selected_playlist['playlistId'], 1000)['tracks']
-    titles = [t['title'] for t in tracks]
+    titles = [tt['artists'][0]['name'] + " " + tt['title'] for tt in tracks]
     print(f"Got all track names from playlist {selected_playlist['playlistId']}")
     return titles
 
 
 what_to_do = input("You chose:")
-if (what_to_do == '1'):
+if what_to_do == '1':
     copy_youtube_music_track_from_to_youtube_music_playlist()
-elif (what_to_do == '2'):
+elif what_to_do == '2':
     loop = asyncio.get_event_loop()
     temp = get_track_names_from_youtube_music_playlist()
     loop.run_until_complete(yandex_music(temp))
+
