@@ -86,7 +86,17 @@ def copy_youtube_music_track_from_to_youtube_music_playlist():
     new_playlist = get_playlist(ytmusic, new_playlist_name)
 
     if not new_playlist:
-        new_playlist = ytmusic.create_playlist(new_playlist_name, "Public playlist created from Likes", "PUBLIC")
+        access = input("Access:\n 1. PUBLIC\n  2. PRIVATE")
+
+        if access == "1":
+            access_type = "PUBLIC"
+        elif access == "2":
+            access_type = "PRIVATE"
+        else:
+            print("Invalid choice. Defaulting to PRIVATE.")
+            access_type = "PRIVATE"
+
+        new_playlist = ytmusic.create_playlist(new_playlist_name, "Public playlist created from Likes", access_type)
 
     existing_tracks = ytmusic.get_playlist(new_playlist, track_quantity)['tracks']
     tracks = [t for t in tracks if not any(et['videoId'] == t['videoId'] for et in existing_tracks)]
@@ -120,7 +130,8 @@ async def yandex_music(titles: []):
     print(f"Got Yandex token {token}")
     client = await ClientAsync(token).init()
     print("Connected to Yandex")
-    created_playlist = await client.users_playlists_create(title="Copied from YTM2")
+    name_of_playlist = input("Name of new playlist")
+    created_playlist = await client.users_playlists_create(title=name_of_playlist)
     print("Created new playlist")
     progress = {'count': 0, 'total': len(titles)}
     print(f"Quantity of tracks from youtube {len(titles)}")
@@ -142,7 +153,10 @@ def get_track_names_from_youtube_music_playlist():
     return titles
 
 
-what_to_do = input("You chose:")
+what_to_do = input("""
+1. Copy music from youtube music to youtube music
+2. Copy music from youtube music to yandex music
+""")
 if what_to_do == '1':
     get_oauth_youtube_music()
     copy_youtube_music_track_from_to_youtube_music_playlist()
