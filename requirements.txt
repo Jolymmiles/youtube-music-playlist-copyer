@@ -1,0 +1,5 @@
+asyncio
+selenium
+webdriver_manager
+yandex_music
+ytmusicapi
