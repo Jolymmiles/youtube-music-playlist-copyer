@@ -1,19 +1,22 @@
 import asyncio
 import json
+import os
+import subprocess
 import time
-from time import sleep
 
 from selenium import webdriver
 from selenium.webdriver import DesiredCapabilities
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.remote.command import Command
-from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 from yandex_music import ClientAsync
 from ytmusicapi import YTMusic
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
 
+
+def get_oauth_youtube_music():
+    if not os.path.exists("oauth.json"):
+        command = "ytmusicapi oauth"
+        subprocess.Popen(['start', 'cmd', '/k', command], shell=True)
 
 
 def is_active(driver):
@@ -24,7 +27,7 @@ def is_active(driver):
         return False
 
 
-def get_token():
+def get_token_for_yandex():
     # make chrome log requests
     capabilities = DesiredCapabilities.CHROME
     capabilities["loggingPrefs"] = {"performance": "ALL"}
@@ -78,7 +81,7 @@ def copy_youtube_music_track_from_to_youtube_music_playlist():
     track_quantity = int(input("Quantity of tracks in playlist:"))
     playlist_link_from = input("Link to playlist from which should be copied tracks:").split("=")[1]
 
-    ytmusic = YTMusic("browser.json")
+    ytmusic = YTMusic("oauth.json")
     tracks = ytmusic.get_playlist(playlist_link_from, track_quantity)['tracks']
     new_playlist = get_playlist(ytmusic, new_playlist_name)
 
@@ -113,7 +116,7 @@ async def add_track(client, playlist_kind, track_name, progress):
 
 
 async def yandex_music(titles: []):
-    token = get_token()
+    token = get_token_for_yandex()
     print(f"Got Yandex token {token}")
     client = await ClientAsync(token).init()
     print("Connected to Yandex")
@@ -126,7 +129,7 @@ async def yandex_music(titles: []):
 
 
 def get_track_names_from_youtube_music_playlist():
-    ytmusic = YTMusic("browser.json")
+    ytmusic = YTMusic("oauth.json")
     print("Connected to YouTube Music")
     playlists = ytmusic.get_library_playlists()
     for i, playlist in enumerate(playlists):
@@ -141,9 +144,10 @@ def get_track_names_from_youtube_music_playlist():
 
 what_to_do = input("You chose:")
 if what_to_do == '1':
+    get_oauth_youtube_music()
     copy_youtube_music_track_from_to_youtube_music_playlist()
 elif what_to_do == '2':
+    get_oauth_youtube_music()
     loop = asyncio.get_event_loop()
     temp = get_track_names_from_youtube_music_playlist()
     loop.run_until_complete(yandex_music(temp))
-
