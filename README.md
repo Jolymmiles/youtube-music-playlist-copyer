@@ -15,7 +15,7 @@ This Python script allows you to effortlessly migrate playlists between differen
 1. Clone this repository or download the source code:
 
 ```shell
-git clone https://github.com/your-username/youtube-music-playlist-copyer.git
+git clone https://github.com/Jolymmiles/youtube-music-playlist-copyer.git
 ```
 
 2. Install the required dependencies:
